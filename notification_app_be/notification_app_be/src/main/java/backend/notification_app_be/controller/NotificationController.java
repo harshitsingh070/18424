@@ -20,7 +20,7 @@ import backend.notification_app_be.service.NotificationService;
 
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*")
 public class NotificationController {
     
     private final NotificationService service;
@@ -64,8 +64,13 @@ public class NotificationController {
 
     @PostMapping("/sync")
     public ResponseEntity<String> syncNotifications() {
-        service.syncNotifications();
-        return ResponseEntity.ok("Sync Completed");
+        try {
+            service.syncNotifications();
+            int count = service.getAllNotifications().size();
+            return ResponseEntity.ok("Synced " + count + " notifications");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Sync failed: " + e.getMessage());
+        }
     }
 
 
@@ -83,5 +88,10 @@ public class NotificationController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Running");
+    }
+    
+    @GetMapping("/debug/sync")
+    public ResponseEntity<String> debugSync() {
+        return ResponseEntity.ok("Total notifications: " + service.getAllNotifications().size());
     }
 }

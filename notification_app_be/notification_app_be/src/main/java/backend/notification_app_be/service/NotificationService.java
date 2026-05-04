@@ -45,79 +45,87 @@ public class NotificationService {
    
     public void syncNotifications() {
         try {
-            System.out.println("Trying to fetch: " + externalApiUrl);
+            System.out.println("Starting sync from: " + externalApiUrl);
             
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
+            headers.set("Accept", "application/json");
             
-           
             if (apiToken != null && !apiToken.isEmpty()) {
                 headers.set("Authorization", "Bearer " + apiToken);
-                System.out.println("Using Authorization token");
-            } else {
-                System.out.println("Warning");
+                System.out.println("Token added");
             }
             
             HttpEntity<String> entity = new HttpEntity<>(headers);
+            System.out.println("Making request...");
             ResponseEntity<Map> response = restTemplate.exchange(externalApiUrl, HttpMethod.GET, entity, Map.class);
             
-            System.out.println("API  Response: " + response.getStatusCode());
+            System.out.println("Response code: " + response.getStatusCode());
+            Map<String, Object> body = response.getBody();
             
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-                System.out.println("Response keys: " + body.keySet());
-                
-             
-                List<?> notifList = (List<?>) body.get("notifications");
-                if (notifList == null) {
-                    notifList = (List<?>) body.get("data");
-                }
-                if (notifList == null) {
-                    notifList = (List<?>) body.get("results");
-                }
-                
-                if (notifList != null && !notifList.isEmpty()) {
-                    notificationsCache.clear();
-                    System.out.println("Found " + notifList.size() + " notifications");
-                    
-                    for (Object notifObj : notifList) {
-                        if (notifObj instanceof Map<?, ?> notifMap) {
-                            String id = (String) notifMap.get("ID");
-                            String message = (String) notifMap.get("Message");
-                            String type = (String) notifMap.get("Type");
-                            String timestamp = (String) notifMap.get("Timestamp");
-                            
-                            Notification notif = new Notification();
-                            notif.setId(id);
-                            notif.setTitle(message != null ? message : "No Title");
-                            notif.setMessage(message);
-                            notif.setType(type);
-                            notif.setTimestamp(timestamp);
-                            notif.setPriority(calculatePriority(type));
-                            notif.setRead(false);
-                            
-                            notificationsCache.add(notif);
-                            System.out.println("Loaded: " + notif.getTitle());
-                        }
-                    }
-                    
-                  
-                    notificationsCache.sort((a, b) -> {
-                        int priorityCompare = b.getPriority().compareTo(a.getPriority());
-                        if (priorityCompare != 0) return priorityCompare;
-                        return b.getTimestamp().compareTo(a.getTimestamp());
-                    });
-                    
-                    System.out.println("SUCCESS   Synced " + notificationsCache.size() + " real notifications");
-                    return;
+            if (body == null) {
+                System.out.println("Response body is null");
+                return;
+            }
+            
+            System.out.println("Response body keys: " + body.keySet());
+            
+            List<?> notifList = null;
+            if (body.containsKey("data")) {
+                Object data = body.get("data");
+                System.out.println("Found 'data' key, type: " + (data != null ? data.getClass().getName() : "null"));
+                if (data instanceof List<?>) {
+                    notifList = (List<?>) data;
                 }
             }
             
-            System.out.println("Warning-> No data from API");
+            if (notifList == null) {
+                System.out.println("Trying alternative keys...");
+                notifList = (List<?>) body.get("notifications");
+            }
+            if (notifList == null) {
+                notifList = (List<?>) body.get("results");
+            }
+            
+            if (notifList != null && !notifList.isEmpty()) {
+                System.out.println("Processing " + notifList.size() + " notifications");
+                notificationsCache.clear();
+                
+                for (Object notifObj : notifList) {
+                    if (notifObj instanceof Map<?, ?>) {
+                        Map<?, ?> notifMap = (Map<?, ?>) notifObj;
+                        String id = String.valueOf(notifMap.get("ID") != null ? notifMap.get("ID") : notifMap.get("id"));
+                        String message = String.valueOf(notifMap.get("Message") != null ? notifMap.get("Message") : notifMap.get("message"));
+                        String type = String.valueOf(notifMap.get("Type") != null ? notifMap.get("Type") : notifMap.get("type"));
+                        String timestamp = String.valueOf(notifMap.get("Timestamp") != null ? notifMap.get("Timestamp") : notifMap.get("timestamp"));
+                        
+                        Notification notif = new Notification();
+                        notif.setId(id);
+                        notif.setTitle(message);
+                        notif.setMessage(message);
+                        notif.setType(type);
+                        notif.setTimestamp(timestamp);
+                        notif.setPriority(calculatePriority(type));
+                        notif.setRead(false);
+                        
+                        notificationsCache.add(notif);
+                    }
+                }
+                
+                notificationsCache.sort((a, b) -> {
+                    int priorityCompare = b.getPriority().compareTo(a.getPriority());
+                    if (priorityCompare != 0) return priorityCompare;
+                    return b.getTimestamp().compareTo(a.getTimestamp());
+                });
+                
+                System.out.println("Synced " + notificationsCache.size() + " notifications");
+            } else {
+                System.out.println("No notifications found in response");
+            }
             
         } catch (Exception e) {
-            System.err.println("ERROR - API: " + e.getMessage());
-            System.out.println("Paste the token in the Yaml file");
+            System.out.println("Sync error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
