@@ -57,7 +57,7 @@ public class NotificationController {
     
     @PatchMapping("/{id}/read")
     public ResponseEntity<Notification> markRead(@PathVariable String id) {
-        return ResponseEntity.ok(service.markRead(id));
+        return ResponseEntity.ok(service.markAsRead(id));
     }
 
 
@@ -82,6 +82,6 @@ public class NotificationController {
     
     @GetMapping("/health")
     public ResponseEntity<String> health() {
-        return ResponseEntity.ok("Running Backend");
+        return ResponseEntity.ok("Running");
     }
 }
