@@ -1,3 +1,11 @@
 spring:
   application:
     name: notification_app_be
+server:
+  port: 8080
+logging:
+  level:
+    root: INFO
+    backend.notification_app_be: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
