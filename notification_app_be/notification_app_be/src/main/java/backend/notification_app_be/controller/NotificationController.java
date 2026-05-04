@@ -33,21 +33,31 @@ public class NotificationController {
 
     @GetMapping
     public ResponseEntity<List<Notification>> getAllNotifications(
-            @RequestParam(required = false) String type,
+            @RequestParam(name = "notification_type", required = false) String notificationType,
+            @RequestParam(name = "type", required = false) String typeAlt,
             @RequestParam(required = false) Boolean read,
-            @RequestParam(defaultValue = "100") int limit) {
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "0") int page) {
+        
+        // Support both notification_type and type parameter
+        String typeFilter = notificationType != null ? notificationType : typeAlt;
         
         List<Notification> notifications;
         
-        if (type != null) {
-            notifications = service.getByType(type);
+        if (typeFilter != null) {
+            notifications = service.getByType(typeFilter);
         } else if (read != null) {
             notifications = service.getByReadStatus(read);
         } else {
             notifications = service.getAllNotifications();
         }
         
-        return ResponseEntity.ok(notifications.stream().limit(limit).toList());
+        // Pagination logic: page 0 = first limit items, page 1 = next limit items, etc
+        int skip = page * limit;
+        return ResponseEntity.ok(notifications.stream()
+                .skip(skip)
+                .limit(limit)
+                .toList());
     }
     
     @GetMapping("/top/{limit}")
